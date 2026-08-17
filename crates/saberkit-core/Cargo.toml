@@ -1,0 +1,14 @@
+[package]
+name = "saberkit-core"
+description = "Pure-Rust sabermetrics: rate stats, plus/minus stats, and league percentiles"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+# NOTE: this crate must never depend on pyo3, arrow, or anything doing I/O.
+# It is the statistical core, testable with a bare `cargo test -p saberkit-core`
+# and with no Python interpreter present. Keep this dependency list tiny.
+[dependencies]
+thiserror.workspace = true

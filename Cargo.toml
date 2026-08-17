@@ -1,0 +1,23 @@
+[workspace]
+members = ["crates/saberkit-core", "crates/saberkit-py"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/harlanljones/sabermetrics-in-rust"
+rust-version = "1.83"
+
+# The pyo3 / pyo3-arrow / arrow-rs trio must move in lockstep. pyo3-arrow 0.19
+# depends on `pyo3 ^0.29` and `arrow-* ^59`; bumping arrow independently produces
+# two incompatible copies of arrow-array in the graph and a baffling
+# "expected ArrayRef, found ArrayRef" error. Bump these together or not at all.
+[workspace.dependencies]
+pyo3 = "0.29.2"
+pyo3-arrow = "0.19"
+arrow-array = "59"
+arrow-buffer = "59"
+arrow-cast = "59"
+arrow-schema = "59"
+thiserror = "2"

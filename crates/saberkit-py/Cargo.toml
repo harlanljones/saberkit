@@ -1,0 +1,27 @@
+[package]
+name = "saberkit-py"
+description = "Python bindings for saberkit-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+# The cdylib links against the interpreter, so a `cargo test` harness for this
+# target cannot link on its own. All Rust tests live in saberkit-core; the
+# Python side is covered by pytest.
+test = false
+doctest = false
+
+[dependencies]
+saberkit-core = { path = "../saberkit-core" }
+# abi3-py311 (not py310) is required: pyo3-arrow's default `buffer_protocol`
+# feature only supports abi3 from 3.11 up.
+pyo3 = { workspace = true, features = ["extension-module", "abi3-py311"] }
+pyo3-arrow.workspace = true
+arrow-array.workspace = true
+arrow-cast.workspace = true
+arrow-schema.workspace = true
