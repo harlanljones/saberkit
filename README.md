@@ -73,10 +73,43 @@ maturin develop -E dev                      # build + install into the active ve
 pytest                                      # Arrow interop, nulls, error paths
 ```
 
-## Status
+## What's implemented
 
-Early scaffold. Rate statistics and the Arrow bridge are in place; the plus
-family, minus family, and percentile engine are landing incrementally.
+| Group | Statistics |
+| --- | --- |
+| Rate stats | `obp` `slg` `avg` `ops` `iso` `babip` `woba` `fip` `xfip` `era` `total_bases` `singles` |
+| Plus family | `ops_plus` `sops_plus` `tops_plus` `era_plus` `wraa` `wrc` `wrc_plus` |
+| Minus family | `era_minus` `fip_minus` `xfip_minus` |
+| Percentiles | `LeagueDistribution` `percentile_ranks` `batter_qualifier` `pitcher_qualifier` |
+| Innings | `ip_to_outs` `outs_to_innings` |
+
+### Accuracy
+
+Statistics that depend only on their inputs — OBP, SLG, wOBA, FIP, sOPS+,
+tOPS+ — reproduce published figures exactly. Those involving park factors
+(OPS+, ERA+, and the minus family) approximate the publishers' internal
+pipelines, which use regressed multi-year park factors; expect agreement to
+within a point or two. Each function's docstring says which it is.
+
+### Innings pitched
+
+Baseball records innings in a notation where the digit after the decimal counts
+*outs*: `190.1` is 190⅓ and `190.2` is 190⅔. Reading those as decimals
+understates the denominator by about 0.7% — enough to shift a FIP in the third
+decimal and quietly break comparisons against published figures. `saberkit`
+converts through outs internally and rejects impossible values like `190.4`.
+
+## Not yet included
+
+- **Season constants.** The FanGraphs "Guts!" table (wOBA weights, `wOBAScale`,
+  `cFIP`, league R/PA) is not bundled, so there is no
+  `LeagueContext.for_season(2024)`. Supply the constants yourself, or derive
+  what you can from counting stats with `LeagueContext.from_totals`. Shipping
+  unverified constants that *look* authoritative would be worse than shipping
+  none.
+- **Published wheels.** Building from source works; there is no PyPI release
+  and no cross-platform wheel matrix yet.
+- **Park factors.** You supply them. `saberkit` does not compute or bundle any.
 
 ## License
 

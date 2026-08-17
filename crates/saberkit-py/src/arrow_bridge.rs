@@ -82,28 +82,6 @@ fn cast_f64(array: &ArrayRef, name: &'static str) -> PyResult<Float64Array> {
         .clone())
 }
 
-/// Verify that every input column has the same length.
-///
-/// `columns` is `(name, length)` pairs. The first entry is the reference, and
-/// the error names both sides so the caller can see which column is the odd
-/// one out.
-pub fn check_lengths(columns: &[(&'static str, usize)]) -> PyResult<usize> {
-    let Some(&(first_name, first_len)) = columns.first() else {
-        return Ok(0);
-    };
-
-    for &(name, len) in &columns[1..] {
-        if len != first_len {
-            return Err(crate::error::SaberError::new_err(format!(
-                "length mismatch: `{first_name}` has {first_len} elements \
-                 but `{name}` has {len}"
-            )));
-        }
-    }
-
-    Ok(first_len)
-}
-
 /// Read element `i`, returning `None` when it is null.
 #[inline]
 pub fn at(array: &Float64Array, i: usize) -> Option<f64> {
