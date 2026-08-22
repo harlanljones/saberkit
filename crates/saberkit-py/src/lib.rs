@@ -271,6 +271,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<percentile_py::LeagueDistribution>()?;
     m.add_function(wrap_pyfunction!(percentile_py::percentile_ranks, m)?)?;
     m.add_class::<league_py::LeagueTotals>()?;
+    m.add_function(wrap_pyfunction!(league_py::season_context, m)?)?;
 
     Ok(())
 }

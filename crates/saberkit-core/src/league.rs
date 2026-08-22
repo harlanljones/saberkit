@@ -13,7 +13,8 @@ use crate::util::safe_div;
 
 /// Linear-weight run values for each way of reaching base, used by wOBA.
 ///
-/// These change every season and come from FanGraphs' "Guts!" table.
+/// These change every season. Bundled values are derived from Retrosheet
+/// play-by-play; callers may also supply weights from another methodology.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WobaWeights {
     /// Run value of an unintentional walk.
@@ -72,6 +73,14 @@ impl LeagueContext {
     /// An empty context; fill in only the fields the statistics you need require.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Return bundled constants for a completed MLB season.
+    ///
+    /// The supported range and derivation provenance are documented in
+    /// [`crate::season_constants`].
+    pub fn for_season(season: u16) -> Result<Self> {
+        crate::season_constants::for_season(season)
     }
 
     /// Fetch a required constant, or explain precisely which one is missing.

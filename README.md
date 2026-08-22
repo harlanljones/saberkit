@@ -13,6 +13,13 @@ df = pl.read_csv("batters.csv")
 obp = saberkit.obp(df["h"], df["bb"], df["hbp"], df["ab"], df["sf"])
 ```
 
+Completed-season league constants are bundled for 2010–2025:
+
+```python
+league = saberkit.LeagueContext.for_season(2024)
+rating = saberkit.wrc_plus(0.390, ctx=league, park_factor=102)
+```
+
 Arrow arrays cross the Rust/Python boundary through the
 [Arrow PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html),
 so `polars.Series`, `pyarrow.Array`, and pandas `ArrowDtype` columns all pass
@@ -52,7 +59,8 @@ callers never have to track which convention a given statistic wants.
 
 **You choose the population.** League averages are *inputs*, not something the
 library guesses. Whether `lgOBP` includes pitchers hitting is a real
-methodological choice, so it belongs to the caller.
+methodological choice, so custom contexts keep that decision with the caller.
+Bundled season contexts explicitly use all MLB batters.
 
 ## Layout
 
@@ -74,6 +82,9 @@ maturin develop -E dev                      # build + install into the active ve
 pytest                                      # Arrow interop, nulls, error paths
 ```
 
+Maintainers should follow [`RELEASING.md`](RELEASING.md) for versioning,
+artifact verification, trusted-publisher setup, and tagging.
+
 ## What's implemented
 
 | Group | Statistics |
@@ -83,6 +94,7 @@ pytest                                      # Arrow interop, nulls, error paths
 | Minus family | `era_minus` `fip_minus` `xfip_minus` |
 | Percentiles | `LeagueDistribution` `percentile_ranks` `batter_qualifier` `pitcher_qualifier` |
 | Innings | `ip_to_outs` `outs_to_innings` |
+| League context | `LeagueContext.from_totals` `LeagueContext.for_season` (2010–2025) |
 
 ### Accuracy
 
@@ -100,19 +112,35 @@ understates the denominator by about 0.7% — enough to shift a FIP in the third
 decimal and quietly break comparisons against published figures. `saberkit`
 converts through outs internally and rejects impossible values like `190.4`.
 
+### Season constants and provenance
+
+`LeagueContext.for_season(year)` supplies completed-season MLB constants for
+2010–2025. They are saberkit constants derived from Retrosheet regular-season
+play-by-play—not copies of FanGraphs' Guts! table. The population is all MLB
+batters, including pitcher batting where it occurred. The generator measures
+each season's RE24 matrix, derives linear event weights relative to outs, scales
+wOBA to league OBP, and computes the FIP constant from league totals.
+
+The derivation is reproducible with
+[`scripts/generate_season_constants.py`](scripts/generate_season_constants.py).
+Every season row records a SHA-256 digest of its source event files and the
+generated module records the exact Chadwick Bureau Retrosheet revision. Raw
+Retrosheet data is not packaged. See [`NOTICE`](NOTICE) for attribution.
+
+Because the methodology and population are explicit, these constants can
+differ slightly from publisher-specific tables. In-progress seasons are never
+bundled; requesting an unsupported year raises `SaberError`.
+
 ## Not yet included
 
-- **Season constants.** The FanGraphs "Guts!" table (wOBA weights, `wOBAScale`,
-  `cFIP`, league R/PA) is not bundled, so there is no
-  `LeagueContext.for_season(2024)`. Supply the constants yourself, or derive
-  what you can from counting stats with `LeagueContext.from_totals`. Shipping
-  unverified constants that *look* authoritative would be worse than shipping
-  none.
 - **Published wheels.** CI builds candidate wheels for Linux x86_64/aarch64,
   macOS Intel/Apple Silicon, and Windows x86_64, but no PyPI release has been
   published yet.
 - **Park factors.** You supply them. `saberkit` does not compute or bundle any.
 
-## License
+## License and data attribution
 
 MIT OR Apache-2.0
+
+Bundled season constants are derived from Retrosheet data under its attribution
+terms; see [`NOTICE`](NOTICE).

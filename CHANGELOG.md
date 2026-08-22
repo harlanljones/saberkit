@@ -19,6 +19,10 @@ change must be called out explicitly in this file.
 - Offline tests for the optional pybaseball column-name fallback.
 - CI wheel builds for Linux x86_64/aarch64, macOS Intel/Apple Silicon, and
   Windows x86_64, plus a source-distribution artifact.
+- `LeagueContext.for_season(year)` with reproducible Retrosheet-derived MLB
+  constants for completed seasons 2010–2025.
+- A standard-library-only constants generator, per-season source digests,
+  Retrosheet attribution, and a trusted-publishing release workflow.
 
 ### Changed
 

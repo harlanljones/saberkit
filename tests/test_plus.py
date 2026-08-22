@@ -153,6 +153,34 @@ def test_league_context_leaves_underivable_constants_unset():
     assert ctx.woba_scale is None
 
 
+def test_league_context_for_season_has_complete_retrosheet_constants():
+    ctx = saberkit.LeagueContext.for_season(2024)
+
+    assert ctx.season == 2024
+    assert ctx.lg_obp == pytest.approx(0.312110700012)
+    assert ctx.lg_slg == pytest.approx(0.399219241601)
+    assert ctx.c_fip == pytest.approx(3.15959149278)
+    assert ctx.lg_woba == pytest.approx(ctx.lg_obp)
+    assert ctx.lg_wrc_pa == pytest.approx(ctx.lg_r_pa)
+    assert ctx.weights is not None
+    assert ctx.weights.w_hr == pytest.approx(2.03624482138)
+
+
+def test_league_context_for_season_drives_stats_without_manual_constants():
+    ctx = saberkit.LeagueContext.for_season(2024)
+
+    assert saberkit.ops_plus(ctx.lg_obp, ctx.lg_slg, ctx=ctx) == pytest.approx(100.0)
+    assert saberkit.fip(20, 50, 5, 200, 200.1, ctx=ctx) is not None
+    assert saberkit.woba(90, 30, 5, 25, 60, 10, 5, 500, 5, ctx=ctx) is not None
+
+
+def test_league_context_for_season_rejects_unavailable_years():
+    with pytest.raises(saberkit.SaberError, match="supported completed seasons"):
+        saberkit.LeagueContext.for_season(2009)
+    with pytest.raises(saberkit.SaberError, match="supported completed seasons"):
+        saberkit.LeagueContext.for_season(2026)
+
+
 def test_woba_requires_weights():
     with pytest.raises(saberkit.SaberError, match="weights"):
         saberkit.woba(90, 30, 5, 25, 60, 10, 5, 500, 5)

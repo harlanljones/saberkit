@@ -5,7 +5,43 @@
 //! core, keeping the formula in one place.
 
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use saberkit_core::league::WobaWeights;
+
+use crate::error::CoreError;
+
+/// Return a Python mapping for a bundled completed-season context.
+///
+/// This function only translates the core value into Python objects; the data,
+/// population definition, and validation all live in `saberkit-core`.
+#[pyfunction]
+pub fn season_context(py: Python<'_>, season: u16) -> PyResult<Py<PyDict>> {
+    let context = saberkit_core::LeagueContext::for_season(season).map_err(CoreError::from)?;
+    let result = PyDict::new(py);
+    result.set_item("season", context.season)?;
+    result.set_item("lg_obp", context.lg_obp)?;
+    result.set_item("lg_slg", context.lg_slg)?;
+    result.set_item("lg_era", context.lg_era)?;
+    result.set_item("lg_fip", context.lg_fip)?;
+    result.set_item("lg_xfip", context.lg_xfip)?;
+    result.set_item("lg_woba", context.lg_woba)?;
+    result.set_item("woba_scale", context.woba_scale)?;
+    result.set_item("c_fip", context.c_fip)?;
+    result.set_item("lg_r_pa", context.lg_r_pa)?;
+    result.set_item("lg_wrc_pa", context.lg_wrc_pa)?;
+    result.set_item("lg_hr_per_fb", context.lg_hr_per_fb)?;
+
+    let weights = context.require_weights().map_err(CoreError::from)?;
+    let weights_dict = PyDict::new(py);
+    weights_dict.set_item("w_bb", weights.w_bb)?;
+    weights_dict.set_item("w_hbp", weights.w_hbp)?;
+    weights_dict.set_item("w_1b", weights.w_1b)?;
+    weights_dict.set_item("w_2b", weights.w_2b)?;
+    weights_dict.set_item("w_3b", weights.w_3b)?;
+    weights_dict.set_item("w_hr", weights.w_hr)?;
+    result.set_item("weights", weights_dict)?;
+    Ok(result.unbind())
+}
 
 /// Running totals of a league's counting stats.
 ///
@@ -143,5 +179,38 @@ impl LeagueTotals {
             self.inner.r,
             self.inner.pa,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn season_context_translates_core_values_and_weights() {
+        Python::attach(|py| {
+            let context = season_context(py, 2024).unwrap();
+            let context = context.bind(py);
+            let season = context
+                .get_item("season")
+                .unwrap()
+                .unwrap()
+                .extract::<u16>()
+                .unwrap();
+            let weights = context
+                .get_item("weights")
+                .unwrap()
+                .unwrap()
+                .cast_into::<PyDict>()
+                .unwrap();
+            let home_run = weights
+                .get_item("w_hr")
+                .unwrap()
+                .unwrap()
+                .extract::<f64>()
+                .unwrap();
+            assert_eq!(season, 2024);
+            assert!(home_run > 2.0);
+        });
     }
 }

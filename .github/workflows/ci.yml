@@ -87,7 +87,7 @@ jobs:
           python-version: "3.11"
 
       - run: pip install maturin
-      - run: maturin build --out dist
+      - run: maturin build --locked --out dist
 
       # Guards the headline claim: pyo3-arrow pulls rust-numpy in transitively,
       # so prove a polars-only install still imports and computes. Installing
@@ -113,12 +113,14 @@ jobs:
           /tmp/minimal/bin/python - <<'PY'
           import polars as pl, saberkit
           assert round(saberkit.obp(150, 60, 5, 500, 5), 6) == 0.377193
+          league = saberkit.LeagueContext.for_season(2024)
           out = pl.Series(saberkit.ops_plus(
               pl.Series([0.400]), pl.Series([0.500]),
-              lg_obp=0.320, lg_slg=0.410,
+              ctx=league,
           ))
           assert out.to_list()[0] > 100
-          print("polars-only round trip OK")
+          assert saberkit.fip(20, 50, 5, 200, 200.1, ctx=league) is not None
+          print("polars-only round trip and season context OK")
           PY
 
   wheels:
@@ -152,7 +154,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --locked --out dist
           manylinux: auto
           sccache: true
       - uses: actions/upload-artifact@v4

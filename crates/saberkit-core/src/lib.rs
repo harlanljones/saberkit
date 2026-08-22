@@ -40,6 +40,7 @@ pub mod percentile;
 pub mod plus;
 pub mod rates;
 pub mod savant;
+pub mod season_constants;
 pub mod util;
 
 pub use error::{Result, SaberError};

@@ -91,7 +91,9 @@ NEUTRAL_PARK = 100.0
 class WobaWeights:
     """Linear-weight run values for each way of reaching base.
 
-    These change every season; FanGraphs publishes them in its "Guts!" table.
+    These change every season. `LeagueContext.for_season` supplies bundled
+    values derived from Retrosheet play-by-play; callers may provide weights
+    from another documented methodology.
     """
 
     w_bb: float
@@ -140,6 +142,21 @@ class LeagueContext:
                 f"invalid league constant `{name}`: not set on this LeagueContext"
             )
         return value
+
+    @classmethod
+    def for_season(cls, season: int) -> LeagueContext:
+        """Return bundled constants for a completed MLB season.
+
+        Seasons 2010–2025 are included. Values are derived reproducibly from
+        Retrosheet regular-season play-by-play using all MLB batters as the
+        population. They are saberkit constants, not copied FanGraphs values.
+
+        In-progress and unsupported seasons raise `SaberError` rather than
+        silently substituting another year's run environment.
+        """
+        values = dict(_core.season_context(season))
+        values["weights"] = WobaWeights(**dict(values["weights"]))
+        return cls(**values)
 
     def replace(self, **changes: Any) -> LeagueContext:
         """Return a copy with some fields changed."""

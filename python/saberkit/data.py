@@ -68,11 +68,11 @@ def league_context_for_season(season: int, *, qual: int = 1) -> LeagueContext:
 
     .. note::
 
-       ``woba_scale``, ``lg_wrc_pa`` and the wOBA weights come from FanGraphs'
-       "Guts!" table, which is derived from a run-expectancy model rather than
-       from counting stats. They cannot be recovered here, so the returned
-       context leaves them unset and wRC+ will report them as missing. Supply
-       them yourself via :meth:`LeagueContext.replace`.
+       ``woba_scale``, ``lg_wrc_pa`` and wOBA weights require a run-expectancy
+       model rather than counting stats, so this custom-population helper
+       leaves them unset. Use :meth:`LeagueContext.for_season` for saberkit's
+       all-MLB Retrosheet population, or supply values matching your custom
+       population via :meth:`LeagueContext.replace`.
     """
     frame = batting_stats(season, qual=qual)
 
@@ -103,7 +103,7 @@ def league_context_for_season(season: int, *, qual: int = 1) -> LeagueContext:
 
 
 def woba_weights(**values: float) -> WobaWeights:
-    """Construct wOBA weights from FanGraphs' "Guts!" column names.
+    """Construct wOBA weights from common publisher column names.
 
     A small convenience so a row of that table can be splatted in directly::
 

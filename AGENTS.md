@@ -51,6 +51,8 @@ sOPS+, tOPS+, ERA+, wRAA/wRC/wRC+), `minus.rs` (ERA-, FIP-, xFIP-),
 `savant.rs` (Savant-style qualifier thresholds), `league.rs`
 (`LeagueContext`), `ip.rs` (innings-pitched notation), `util.rs` (shared
 numeric helpers like `safe_div`), `error.rs` (`SaberError`).
+`season_constants.rs` owns lookup/provenance for bundled completed seasons;
+`season_constants_generated.rs` is generator-owned and must not be hand-edited.
 
 ## Verified build/test/lint commands
 
@@ -60,16 +62,16 @@ planning/implementation pass that established this file. Commands marked
 `.github/workflows/ci.yml` or `README.md`. Re-run every relevant command
 before relying on a recorded result.
 
-- **verified baseline** — `cargo test -p saberkit-core` → 63 passed, 0
+- **verified baseline** — `cargo test -p saberkit-core` → 67 passed, 0
   failed, plus 1 passing doctest (`ip::ip_to_outs`).
 - **verified baseline** — `cargo clippy --workspace --all-targets -- -D
   warnings` → clean, zero warnings, across both crates.
 - **verified baseline** — `cargo test -p saberkit-py
-  --no-default-features` → 12 passed, 0 failed. This is the native
+  --no-default-features` → 13 passed, 0 failed. This is the native
   binding-layer suite; keep
   `extension-module` disabled for this command so the test harness can link
   libpython.
-- **verified baseline** — `pytest -q` after `maturin develop -E dev` → 50
+- **verified baseline** — `pytest -q` against a locally built wheel → 53
   passed, 0 failed.
 - **verified baseline** — `cargo fmt --all --check` → clean.
 - **verified baseline** — duplicate-arrow-crate guard:
@@ -140,11 +142,14 @@ single-interpreter result from the full CI matrix.
   `saberkit._core.LeagueTotals`. Do not reintroduce a parallel Python
   formula. Changes to `LeagueTotals` or `from_totals` must preserve the
   cross-language regression test in `tests/test_plus.py`.
-- **Do not fabricate season constants.** README's "Not yet included"
-  section explains why: shipping unverified wOBA weights / `wOBAScale` /
-  `cFIP` / league R-per-PA that merely *look* authoritative is worse than
-  shipping none. If this changes, it needs a sourced, checkable dataset and
-  an explicit decision — not a plausible-looking table.
+- **Season constants are generated, never hand-edited.** Bundled 2010–2025
+  values come from Retrosheet regular-season play-by-play through
+  `scripts/generate_season_constants.py`, with attribution in `NOTICE`, an
+  exact Chadwick Bureau mirror revision, and per-season source digests.
+  Preserve the all-MLB-batters population, completed-half-inning RE24 rule,
+  source-integrity tests, and published-reference tolerance test. A new season
+  is a reviewed regeneration from completed data, not a plausible row typed
+  into `season_constants_generated.rs`.
 
 ## Coordination protocol for concurrent agent work
 
@@ -188,7 +193,7 @@ Report progress against measures that are actually checkable in this repo,
 not activity counts:
 
 - **Rust test pass count and delta.** State the `cargo test -p
-  saberkit-core` summary line verbatim (e.g. "63 passed; 0 failed") before
+  saberkit-core` summary line verbatim (e.g. "67 passed; 0 failed") before
   and after a change, plus doctest count. A regression in passed-test count
   is a stop-and-fix condition, not something to report and move past.
 - **Clippy warning count.** `cargo clippy --workspace --all-targets -- -D
@@ -196,13 +201,12 @@ not activity counts:
   the exact command output, not "clippy passes."
 - **Binding-layer Rust test pass count and delta.** State the
   `cargo test -p saberkit-py --no-default-features` summary before and after
-  changes to `crates/saberkit-py`; the recorded baseline is 12 passed, 0
+  changes to `crates/saberkit-py`; the recorded baseline is 13 passed, 0
   failed.
-- **Which README "Not yet included" items are closed.** Currently three:
-  season constants / `LeagueContext.for_season`, published PyPI wheels, and
-  park-factor computation (this last one is a permanent non-goal, not a
-  backlog item — see ROADMAP.md). Report status against these three by
-  name, not vague "progress made."
+- **Which README backlog items are closed.** Season constants /
+  `LeagueContext.for_season` is closed; published PyPI wheels remain open;
+  park-factor computation is a permanent non-goal. Report status against these
+  three by name, not vague "progress made."
 - **New unwrap/panic/expect introduced on user-controlled paths.** Zero is
   the bar; grep for it (`grep -rn "unwrap()\|panic!\|expect(" crates/*/src`)
   before claiming a change is done, and manually confirm any hit is either
