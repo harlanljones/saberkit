@@ -34,6 +34,3 @@ strip = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = [
-    "network: test requires network access (deselect with '-m \"not network\"')",
-]

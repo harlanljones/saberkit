@@ -24,13 +24,13 @@ def test_league_average_rates_exactly_one_hundred(nl_2002):
 def test_reproduces_bonds_2002_ops_plus(nl_2002):
     """Baseball-Reference lists OPS+ 268 for Bonds in 2002."""
     got = saberkit.ops_plus(0.582, 0.799, ctx=nl_2002, park_factor=101.0)
-    assert got == pytest.approx(268.0, abs=3.0)
+    assert got == pytest.approx(268.0, abs=2.0)
 
 
 def test_reproduces_pedro_2000_era_plus():
     """Baseball-Reference lists ERA+ 291, the qualified-starter record."""
     got = saberkit.era_plus(1.74, lg_era=4.91, park_factor=103.0)
-    assert got == pytest.approx(291.0, abs=5.0)
+    assert got == pytest.approx(291.0, abs=2.0)
 
 
 def test_minus_family_runs_the_other_way():
@@ -124,6 +124,27 @@ def test_league_context_from_totals_sums_before_dividing():
     # Averaging the two players' rates instead would give a very different answer.
     mean_of_rates = ((180 / 600) + (1 / 10)) / 2
     assert ctx.lg_obp != pytest.approx(mean_of_rates, abs=0.05)
+
+
+def test_from_totals_c_fip_matches_rust_league_totals():
+    """Regression: c_fip in from_totals must agree with Rust LeagueTotals."""
+    totals = saberkit._core.LeagueTotals(
+        ab=1000.0, h=250.0, doubles=50.0, triples=5.0, hr=30.0,
+        bb=100.0, ibb=10.0, hbp=10.0, sf=8.0, k=220.0,
+        er=120.0, outs=810.0, r=130.0, pa=1120.0,
+    )
+
+    ctx = saberkit.LeagueContext.from_totals(
+        ab=1000.0, h=250.0, doubles=50.0, triples=5.0, hr=30.0,
+        bb=100.0, ibb=10.0, hbp=10.0, sf=8.0, k=220.0,
+        er=120.0, ip=270.0, r=130.0, pa=1120.0,
+    )
+
+    assert ctx.c_fip == pytest.approx(totals.c_fip)
+    assert ctx.lg_era == pytest.approx(totals.lg_era)
+    assert ctx.lg_obp == pytest.approx(totals.lg_obp)
+    assert ctx.lg_slg == pytest.approx(totals.lg_slg)
+    assert ctx.lg_r_pa == pytest.approx(totals.lg_r_pa)
 
 
 def test_league_context_leaves_underivable_constants_unset():

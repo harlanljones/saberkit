@@ -39,16 +39,20 @@ pub fn column(array: AnyArray, name: &'static str) -> PyResult<Float64Array> {
                 .iter()
                 .map(|chunk| cast_f64(chunk, name))
                 .collect::<PyResult<Vec<_>>>()?;
-
-            let mut builder = Float64Builder::with_capacity(casted.iter().map(|a| a.len()).sum());
-            for chunk in &casted {
-                for value in chunk.iter() {
-                    builder.append_option(value);
-                }
-            }
-            Ok(builder.finish())
+            Ok(merge_chunks(&casted))
         }
     }
+}
+
+/// Concatenate already-cast chunks into one contiguous array, preserving nulls.
+fn merge_chunks(casted: &[Float64Array]) -> Float64Array {
+    let mut builder = Float64Builder::with_capacity(casted.iter().map(|a| a.len()).sum());
+    for chunk in casted {
+        for value in chunk.iter() {
+            builder.append_option(value);
+        }
+    }
+    builder.finish()
 }
 
 /// Cast a single Arrow array to `Float64`, preserving its null mask.
@@ -59,6 +63,9 @@ fn cast_f64(array: &ArrayRef, name: &'static str) -> PyResult<Float64Array> {
         return Ok(array
             .as_any()
             .downcast_ref::<Float64Array>()
+            // SAFETY: we just confirmed the DataType is Float64, so downcast
+            // to Float64Array cannot fail. The `as_any()` + `downcast_ref()`
+            // pattern is the standard Arrow path for this cast.
             .expect("Float64 data type implies Float64Array")
             .clone());
     }
@@ -78,6 +85,9 @@ fn cast_f64(array: &ArrayRef, name: &'static str) -> PyResult<Float64Array> {
     Ok(cast
         .as_any()
         .downcast_ref::<Float64Array>()
+        // SAFETY: we explicitly cast to Float64 above, so the result is always
+        // a Float64Array. Arrow's `cast()` returns `ArrayRef` but the concrete
+        // type is determined by the target DataType we requested.
         .expect("cast to Float64 yields Float64Array")
         .clone())
 }
@@ -91,4 +101,63 @@ pub fn at(array: &Float64Array, i: usize) -> Option<f64> {
 /// Wrap computed values back into an Arrow array for return to Python.
 pub fn float_array(values: Vec<Option<f64>>) -> PyArray {
     PyArray::from_array_ref(Arc::new(Float64Array::from(values)) as ArrayRef)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arrow_array::{Int32Array, StringArray};
+
+    #[test]
+    fn float64_passes_through_with_null_mask() {
+        let arr = Arc::new(Float64Array::from(vec![Some(1.5), None, Some(3.0)])) as ArrayRef;
+        let cast = cast_f64(&arr, "h").unwrap();
+        assert_eq!(cast.len(), 3);
+        assert!(cast.is_null(1));
+        assert!(cast.is_valid(0) && cast.is_valid(2));
+        assert_eq!(cast.value(2), 3.0);
+    }
+
+    #[test]
+    fn integers_cast_preserving_nulls() {
+        let arr = Arc::new(Int32Array::from(vec![Some(1), None, Some(3)])) as ArrayRef;
+        let cast = cast_f64(&arr, "ab").unwrap();
+        assert_eq!(cast.value(0), 1.0);
+        assert!(cast.is_null(1));
+        assert_eq!(cast.value(2), 3.0);
+    }
+
+    #[test]
+    fn non_numeric_columns_are_rejected_by_name() {
+        let arr = Arc::new(StringArray::from(vec![Some("a"), None])) as ArrayRef;
+        let err = cast_f64(&arr, "h").unwrap_err();
+        assert!(err.to_string().contains("`h`"));
+        assert!(err.to_string().contains("Utf8"));
+    }
+
+    #[test]
+    fn null_type_columns_cast_to_all_null() {
+        let arr = Arc::new(arrow_array::NullArray::new(2)) as ArrayRef;
+        let cast = cast_f64(&arr, "x").unwrap();
+        assert_eq!(cast.len(), 2);
+        assert!(cast.is_null(0) && cast.is_null(1));
+    }
+
+    #[test]
+    fn merge_chunks_concatenates_and_preserves_nulls_across_boundaries() {
+        let a = Float64Array::from(vec![Some(1.0), None]);
+        let b = Float64Array::from(vec![None, Some(4.0)]);
+        let merged = merge_chunks(&[a, b]);
+        assert_eq!(merged.len(), 4);
+        assert!(merged.is_valid(0));
+        assert!(merged.is_null(1));
+        assert!(merged.is_null(2));
+        assert_eq!(merged.value(3), 4.0);
+    }
+
+    #[test]
+    fn merge_empty_chunk_list_yields_empty_array() {
+        let merged = merge_chunks(&[]);
+        assert_eq!(merged.len(), 0);
+    }
 }

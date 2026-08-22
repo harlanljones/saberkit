@@ -30,6 +30,16 @@ jobs:
       # interpreter and is the fast inner loop.
       - run: cargo test -p saberkit-core
 
+      # Native tests for the binding layer (cast/null/multi-chunk paths).
+      # `extension-module` must be off so the harness can link; build.rs then
+      # links libpython from the setup-python interpreter.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: cargo test -p saberkit-py --no-default-features
+        env:
+          PYO3_PYTHON: python
+
       # pyo3-arrow pins arrow-* to one major version. Two copies of arrow-array
       # in the graph produce a baffling "expected ArrayRef, found ArrayRef",
       # so fail loudly here instead.
@@ -110,3 +120,59 @@ jobs:
           assert out.to_list()[0] > 100
           print("polars-only round trip OK")
           PY
+
+  wheels:
+    name: Wheel ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact: wheels-linux-x86_64
+          - os: ubuntu-22.04
+            target: aarch64-unknown-linux-gnu
+            artifact: wheels-linux-aarch64
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact: wheels-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: wheels-macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: wheels-windows-x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build abi3 wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: auto
+          sccache: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build source distribution
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error

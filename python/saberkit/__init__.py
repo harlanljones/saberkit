@@ -174,40 +174,51 @@ class LeagueContext:
         20-plate-appearance September call-up the same as a 700-plate-appearance
         regular.
 
+        All rate derivations — including ``c_fip``, ``lg_era``, and ``lg_woba`` —
+        are delegated to the Rust core, so the formula has a single source of
+        truth.
+
         ``woba_scale`` is not derivable from counting stats -- it comes from a
         run-expectancy model -- so it is left unset and must be supplied for
         wRC+.
         """
+        outs = float(ip_to_outs(ip)) if ip is not None else 0.0
+        totals = _core.LeagueTotals(
+            ab=ab,
+            h=h,
+            doubles=doubles,
+            triples=triples,
+            hr=hr,
+            bb=bb,
+            ibb=ibb,
+            hbp=hbp,
+            sf=sf,
+            k=k,
+            er=er,
+            outs=outs,
+            r=r,
+            pa=pa,
+        )
+
         ctx = cls(
             season=season,
-            lg_obp=obp(h, bb, hbp, ab, sf),
-            lg_slg=slg(h, doubles, triples, hr, ab),
-            lg_r_pa=(r / pa) if pa else None,
+            lg_obp=totals.lg_obp,
+            lg_slg=totals.lg_slg,
+            lg_era=totals.lg_era,
+            c_fip=totals.c_fip,
+            lg_r_pa=totals.lg_r_pa,
             weights=weights,
         )
 
-        if ip is not None:
-            lg_era = era(er, ip)
-            ctx = ctx.replace(lg_era=lg_era)
-            if lg_era is not None:
-                innings = outs_to_innings(ip_to_outs(ip))
-                raw = (13 * hr + 3 * (bb + hbp) - 2 * k) / innings if innings else None
-                if raw is not None:
-                    ctx = ctx.replace(c_fip=lg_era - raw)
-
         if weights is not None:
             ctx = ctx.replace(
-                lg_woba=woba(
-                    singles(h, doubles, triples, hr),
-                    doubles,
-                    triples,
-                    hr,
-                    bb,
-                    ibb,
-                    hbp,
-                    ab,
-                    sf,
-                    weights=weights,
+                lg_woba=totals.lg_woba(
+                    weights.w_bb,
+                    weights.w_hbp,
+                    weights.w_1b,
+                    weights.w_2b,
+                    weights.w_3b,
+                    weights.w_hr,
                 )
             )
 

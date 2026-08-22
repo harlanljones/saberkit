@@ -68,6 +68,7 @@ The statistical core is a separate crate that depends on nothing but
 
 ```bash
 cargo test -p saberkit-core                 # statistics, no Python involved
+cargo test -p saberkit-py --no-default-features  # binding layer (cast, nulls, chunks)
 cargo clippy --workspace -- -D warnings
 maturin develop -E dev                      # build + install into the active venv
 pytest                                      # Arrow interop, nulls, error paths
@@ -107,8 +108,9 @@ converts through outs internally and rejects impossible values like `190.4`.
   what you can from counting stats with `LeagueContext.from_totals`. Shipping
   unverified constants that *look* authoritative would be worse than shipping
   none.
-- **Published wheels.** Building from source works; there is no PyPI release
-  and no cross-platform wheel matrix yet.
+- **Published wheels.** CI builds candidate wheels for Linux x86_64/aarch64,
+  macOS Intel/Apple Silicon, and Windows x86_64, but no PyPI release has been
+  published yet.
 - **Park factors.** You supply them. `saberkit` does not compute or bundle any.
 
 ## License

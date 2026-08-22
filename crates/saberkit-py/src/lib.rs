@@ -12,6 +12,7 @@ use pyo3::prelude::*;
 
 mod arrow_bridge;
 mod error;
+mod league_py;
 mod operand;
 mod percentile_py;
 
@@ -269,6 +270,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<percentile_py::LeagueDistribution>()?;
     m.add_function(wrap_pyfunction!(percentile_py::percentile_ranks, m)?)?;
+    m.add_class::<league_py::LeagueTotals>()?;
 
     Ok(())
 }

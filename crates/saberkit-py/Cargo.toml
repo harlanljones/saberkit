@@ -10,11 +10,23 @@ rust-version.workspace = true
 [lib]
 name = "_core"
 crate-type = ["cdylib"]
-# The cdylib links against the interpreter, so a `cargo test` harness for this
-# target cannot link on its own. All Rust tests live in saberkit-core; the
-# Python side is covered by pytest.
-test = false
-doctest = false
+
+[features]
+# `extension-module` skips linking libpython so the cdylib can load inside an
+# interpreter. It must be off for `cargo test`, whose harness links its own
+# binary; hence tests run as:
+#
+#     cargo test -p saberkit-py --no-default-features
+#
+# The tested code paths (cast_f64, chunk merging, null handling) never touch
+# Python objects, so no interpreter is needed.
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+
+[dev-dependencies]
+# Forces pyo3 to locate and link libpython when building the test harness
+# (which cannot use `extension-module`; see above).
+pyo3 = { workspace = true, features = ["auto-initialize"] }
 
 [dependencies]
 saberkit-core = { path = "../saberkit-core" }

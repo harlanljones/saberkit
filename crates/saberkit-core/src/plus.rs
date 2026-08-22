@@ -177,7 +177,7 @@ mod tests {
     fn reproduces_bonds_2002_ops_plus() {
         let got = ops_plus(0.582, 0.799, 0.331, 0.410, 101.0).unwrap();
         assert!(
-            (got - 268.0).abs() < 3.0,
+            (got - 268.0).abs() < 2.0,
             "expected roughly 268, got {got:.1}"
         );
     }
@@ -189,7 +189,7 @@ mod tests {
     fn reproduces_pedro_2000_era_plus() {
         let got = era_plus(1.74, 4.91, 103.0).unwrap();
         assert!(
-            (got - 291.0).abs() < 5.0,
+            (got - 291.0).abs() < 2.0,
             "expected roughly 291, got {got:.1}"
         );
     }

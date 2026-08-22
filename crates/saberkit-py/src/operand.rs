@@ -97,3 +97,53 @@ pub fn finish(py: Python<'_>, len: Option<usize>, values: Vec<Option<f64>>) -> P
         Some(_) => float_array(values).into_py_any(py),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arrow_array::Float64Array;
+
+    fn arr(values: Vec<Option<f64>>) -> Operand {
+        Operand::Array(Float64Array::from(values))
+    }
+
+    #[test]
+    fn scalar_at_returns_none_for_non_finite() {
+        let op = Operand::Scalar(f64::NAN);
+        assert_eq!(op.at(0), None);
+        assert_eq!(Operand::Scalar(0.277).at(0), Some(0.277));
+    }
+
+    #[test]
+    fn array_at_returns_none_for_null() {
+        assert_eq!(arr(vec![Some(1.0), None]).at(1), None);
+    }
+
+    #[test]
+    fn len_is_none_for_scalar() {
+        assert_eq!(Operand::Scalar(2.0).len(), None);
+        assert_eq!(arr(vec![None]).len(), Some(1));
+    }
+
+    #[test]
+    fn output_len_is_none_when_all_scalars() {
+        let s = Operand::Scalar(1.0);
+        assert_eq!(output_len(&[("a", &s)]).unwrap(), None);
+    }
+
+    #[test]
+    fn length_mismatch_names_both_arguments() {
+        let a = arr(vec![Some(1.0); 3]);
+        let b = arr(vec![Some(1.0); 2]);
+        let err = output_len(&[("h", &a), ("bb", &b)]).unwrap_err();
+        assert!(err.to_string().contains("`h`"));
+        assert!(err.to_string().contains("`bb`"));
+    }
+
+    #[test]
+    fn agreeing_arrays_report_the_shared_length() {
+        let a = arr(vec![None; 4]);
+        let b = Operand::Scalar(9.0);
+        assert_eq!(output_len(&[("h", &a), ("lg_obp", &b)]).unwrap(), Some(4));
+    }
+}
