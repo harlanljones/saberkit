@@ -1,42 +1,61 @@
 # saberkit
 
-Fast batch sabermetrics in Rust, with Python bindings: the **"plus" family** of
-baseball statistics (OPS+, sOPS+, tOPS+, ERA+, wRC+), the FanGraphs **"minus"
-family** (ERA-, FIP-, xFIP-), and **Baseball-Savant-style league percentile
-rankings** — the 1–100 "bubbles".
+Live sabermetrics for [marimo](https://marimo.io) notebooks, computed in Rust:
+the **"plus" family** of baseball statistics (OPS+, sOPS+, tOPS+, ERA+, wRC+),
+the FanGraphs **"minus" family** (ERA-, FIP-, xFIP-), and
+**Baseball-Savant-style league percentile rankings** — the 1–100 "bubbles".
+
+Fetch a season, compute everything, and drive it with sliders:
 
 ```python
-import polars as pl
+import marimo as mo
 import saberkit
 
-df = pl.read_csv("batters.csv")
-obp = saberkit.obp(df["h"], df["bb"], df["hbp"], df["ab"], df["sf"])
+season = mo.ui.dropdown(options=list(saberkit.compute.SEASONS), value=2024)
+park_factor = mo.ui.slider(start=85, stop=115, value=100)
+
+table = saberkit.compute.batting_table(
+    saberkit.ingest.load_batting(season.value),
+    league="season",
+    season=season.value,
+    park_factor=float(park_factor.value),
+)
 ```
 
-Completed-season league constants are bundled for 2010–2025:
+Every rate stat, OPS+, wRC+, and the percentile ranks recompute reactively as
+the controls move. Two ready-to-run notebooks ship in
+[`notebooks/`](notebooks/) — a Savant-style **percentile explorer** and a
+**pitcher scout** for ERA-/FIP-:
 
-```python
-league = saberkit.LeagueContext.for_season(2024)
-rating = saberkit.wrc_plus(0.390, ctx=league, park_factor=102)
+```bash
+pip install "saberkit[marimo,data]"   # data adds pybaseball for live fetching
+marimo edit notebooks/percentile_explorer.py   # runs offline without `data` too
 ```
 
-Arrow arrays cross the Rust/Python boundary through the
-[Arrow PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html),
-so `polars.Series`, `pyarrow.Array`, and pandas `ArrowDtype` columns all pass
-with **no copy and no conversion**. `saberkit` has **zero required runtime
-dependencies** — not even pyarrow.
+## Also a fast batch library
 
-Pass plain numbers instead of arrays and you get a plain number back:
+Pass Arrow arrays and you get Arrow back through the
+[PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html)
+— `polars.Series`, `pyarrow.Array`, and pandas `ArrowDtype` columns all pass
+with no copy and no conversion. Pass plain numbers and you get a number:
 
 ```python
 >>> round(saberkit.obp(h=150, bb=60, hbp=5, ab=500, sf=5), 4)
 0.3772
+
+league = saberkit.LeagueContext.for_season(2024)
+rating = saberkit.wrc_plus(0.390, ctx=league, park_factor=102)
 ```
+
+`saberkit` has **zero required runtime dependencies** — not even pyarrow.
+The notebook layer (`ingest`, `compute`) imports polars lazily; scalar use
+needs nothing installed at all.
 
 ## Install
 
 ```bash
 pip install saberkit              # core library, no dependencies
+pip install "saberkit[marimo]"    # adds marimo + altair + polars for notebooks
 pip install "saberkit[data]"      # adds pybaseball helpers for fetching data
 ```
 
@@ -46,31 +65,36 @@ Requires Python 3.11+.
 
 **Undefined is not an error.** A player with zero at-bats has no batting
 average. Every statistic returns `None` — an Arrow null in batch mode — rather
-than raising, returning NaN, or returning infinity. Nulls propagate elementwise.
+than raising, returning NaN, or returning infinity. Nulls propagate
+elementwise, and the table layer extends the rule to whole populations: filter
+a dashboard until nobody qualifies and the percentile columns come back
+all-null instead of crashing your cell.
 
 **Misconfiguration *is* an error.** A null player row is normal; a NaN league
 constant silently poisons every result it touches. Bad constants and mismatched
 array lengths raise `saberkit.SaberError` (a `ValueError` subclass).
 
-**Park factors are on the 100-scale everywhere** (100 = neutral), matching how
-Baseball-Reference and FanGraphs publish them. Some source formulas are written
-in terms of a decimal ratio; `saberkit` normalizes at the API boundary so
-callers never have to track which convention a given statistic wants.
+**League baselines are inputs, not guesses.** `compute.batting_table` makes
+you say which population defines "league average": bundled season constants
+(`league="season"`), the data on screen (`league="sample"`), or your own
+`LeagueContext`. Whether pitchers' hitting counts is a methodological choice,
+and it stays with you.
 
-**You choose the population.** League averages are *inputs*, not something the
-library guesses. Whether `lgOBP` includes pitchers hitting is a real
-methodological choice, so custom contexts keep that decision with the caller.
-Bundled season contexts explicitly use all MLB batters.
+**Park factors are on the 100-scale everywhere** (100 = neutral), matching how
+Baseball-Reference and FanGraphs publish them.
 
 ## Layout
 
 The statistical core is a separate crate that depends on nothing but
 `thiserror` — no Python, no Arrow, no I/O:
 
-| Crate | Role |
+| Crate / package | Role |
 | --- | --- |
 | `crates/saberkit-core` | The statistics. Pure Rust, testable with `cargo test`, no interpreter needed. Usable standalone from Rust. |
 | `crates/saberkit-py` | The only crate that knows Python exists. Arrow conversion and PyO3 bindings; contains no statistics. |
+| `python/saberkit/ingest.py` | Fetch-and-reshape: publisher column names → canonical polars frames. No formulas. |
+| `python/saberkit/compute.py` | One-call tables: wires columns into the Rust-backed functions and reattaches results. No formulas. |
+| `notebooks/` | Shipped marimo apps built on the above. |
 
 ## Development
 
@@ -79,7 +103,8 @@ cargo test -p saberkit-core                 # statistics, no Python involved
 cargo test -p saberkit-py --no-default-features  # binding layer (cast, nulls, chunks)
 cargo clippy --workspace -- -D warnings
 maturin develop -E dev                      # build + install into the active venv
-pytest                                      # Arrow interop, nulls, error paths
+pytest                                      # incl. headless runs of every notebook
+SABERKIT_OFFLINE=1 marimo edit notebooks/pitcher_explorer.py   # notebooks without network
 ```
 
 Maintainers should follow [`RELEASING.md`](RELEASING.md) for versioning,
@@ -95,6 +120,7 @@ artifact verification, trusted-publisher setup, and tagging.
 | Percentiles | `LeagueDistribution` `percentile_ranks` `batter_qualifier` `pitcher_qualifier` |
 | Innings | `ip_to_outs` `outs_to_innings` |
 | League context | `LeagueContext.from_totals` `LeagueContext.for_season` (2010–2025) |
+| Tables | `compute.batting_table` `compute.pitching_table` |
 
 ### Accuracy
 
@@ -130,6 +156,15 @@ Retrosheet data is not packaged. See [`NOTICE`](NOTICE) for attribution.
 Because the methodology and population are explicit, these constants can
 differ slightly from publisher-specific tables. In-progress seasons are never
 bundled; requesting an unsupported year raises `SaberError`.
+
+### Data sources
+
+`saberkit.data` wraps pybaseball's FanGraphs scrapers behind the optional
+`data` extra; `saberkit.ingest` reshapes their output — and any polars/
+pandas/pyarrow frame you already have — into canonical lowercase columns.
+Scraped sites change without notice, so treat fetching as convenience, not
+contract, and pin snapshots for anything reproducible. The shipped notebooks
+fall back to committed fixtures when offline (`SABERKIT_OFFLINE=1` forces it).
 
 ## Not yet included
 

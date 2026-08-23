@@ -70,10 +70,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # The maturin build backend handles the editable install, compiling the
-      # extension in place.
-      - run: pip install -e '.[dev]'
+      # extension in place. The marimo extra brings notebook deps so the
+      # shipped notebooks run headlessly inside the test matrix.
+      - run: pip install -e '.[dev,marimo]'
       - run: pytest -q
-      - run: python examples/savant_bubbles.py
 
   minimal:
     name: No pyarrow, no numpy

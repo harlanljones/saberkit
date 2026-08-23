@@ -60,6 +60,16 @@ milestone-level decisions live.
   truth, guarded downcasts are documented, the optional-data fallback has a
   network-free test, and the published-reference tolerances match README.
   These are now regression gates rather than active roadmap work.
+- **Marimo-focused repositioning complete (2026-08).** `saberkit[marimo]`
+  extra; `ingest.py` (season loaders + offline `normalize`), `compute.py`
+  (`batting_table`/`pitching_table`), two shipped reactive notebooks;
+  `examples/savant_bubbles.py` ported into `notebooks/` and removed. Verified
+  this session: core suite unchanged at **67 passed / 0 failed + 1 doctest**,
+  clippy clean at 0 warnings, fmt clean, binding suite **13 passed /
+  0 failed**, pytest grew to **82 passed / 0 failed**, duplicate-arrow guard
+  clean, and the minimal-install simulation (wheel into a polars-only venv,
+  none of numpy/pyarrow/pandas/marimo/altair importable, table compute OK)
+  passed locally.
 
 ## Objective
 
@@ -68,6 +78,11 @@ zero-copy, zero-required-dependency binding guarantee intact while completing
 the first package-index release. Season constants and the five-platform build
 matrix are complete; the remaining critical path is maintainer-owned PyPI
 trusted-publisher configuration, a green release commit, and the first tag.
+
+**2026-08 update (user-directed):** the product now leads with a marimo-focused
+interactive layer (see "Adopted marimo-focused repositioning" below). That work
+is complete on the repository side; RM-1b (first PyPI release) remains open and
+now ships notebooks in the sdist.
 
 ## Scope
 
@@ -158,6 +173,36 @@ using the Chadwick Bureau mirror revision recorded in generated Rust. The
 population is all MLB batters. Only completed half-innings enter RE24; all
 regular-season events enter league totals. In-progress seasons are excluded.
 
+### Adopted marimo-focused repositioning (2026-08, user-directed)
+
+Per the instruction-precedence rule in `AGENTS.md` (user > AGENTS.md >
+ROADMAP.md), the user directed that `saberkit` be repositioned as a
+marimo-focused package for quick ingestion and compute of sabermetrics in
+live/interactive data experiences. The adopted shape:
+
+1. **The zero-required-dependency guarantee is unchanged and load-bearing.**
+   `[project].dependencies` stays empty; marimo/altair/polars live in a new
+   optional extra (`saberkit[marimo]`); polars and pybaseball import lazily;
+   CI's `minimal` job remains the release-blocking detector, and a pytest
+   subprocess assertion pins fresh-import hygiene.
+2. **Formulas stay in Rust.** `compute.batting_table` /
+   `compute.pitching_table` are column-wiring layers over existing
+   Rust-backed calls. The only sanctioned Python-side arithmetic mirrors the
+   original shipped example: the `pa` sum and the `k_rate` ratio as polars
+   expressions, both null-guarded against zero denominators.
+3. **League populations stay explicit.** Tables take `league="season"`
+   (bundled constants), `league="sample"` (derived from the shown totals), or
+   an explicit `LeagueContext`. No guessing.
+4. **Degradation over crashes for reactive states.** A selection where nobody
+   qualifies — normal mid-slider — yields all-null percentile/rating columns,
+   not an exception; per-row undefined still means null, never NaN.
+5. **Offline determinism for tests.** Notebooks fall back to committed
+   fixtures when pybaseball/network is unavailable (`SABERKIT_OFFLINE=1`
+   forces it); CI never scrapes.
+
+Non-goals untouched: no park-factor computation, no expansion of fetching
+beyond the thin `data.py`/`ingest.py` convenience, no required notebook deps.
+
 ## Metrics
 
 | Metric | Baseline (verified) | Target | Measurement method | Owner | Cadence |
@@ -166,7 +211,9 @@ regular-season events enter league totals. In-progress seasons are excluded.
 | `saberkit-core` doctest pass count | 1 passed | No regression | `cargo test -p saberkit-core` (doctest section) | TBD | Every PR touching doc comments with examples |
 | Clippy warnings (workspace) | 0 (recorded baseline) | 0, always | `cargo clippy --workspace --all-targets -- -D warnings` | TBD | Every PR |
 | `saberkit-py` native Rust test count | 13 passed (season-context translation added) | Grows with binding-layer changes | `cargo test -p saberkit-py --no-default-features` | TBD | Every PR touching `crates/saberkit-py` |
-| pytest pass count | 53 passed from an installed wheel | 53/53 passing at minimum, grows with new coverage | `pytest -q` from repo root | TBD | Every PR touching `python/` or `crates/saberkit-py` |
+| pytest pass count | 82 passed (53 prior baseline + ingest/compute/notebook suites) | No regressions; grows with new coverage | `pytest -q` from repo root | TBD | Every PR touching `python/`, `notebooks/`, or `crates/saberkit-py` |
+| Headless notebook execution | Both shipped notebooks run via `app.run()` under `SABERKIT_OFFLINE=1` | Both always executable offline | `pytest -q tests/test_notebooks.py` | TBD | Every PR touching `notebooks/` or the compute layer |
+| Fresh-import hygiene | `import saberkit` loads none of polars/pyarrow/pandas/numpy/marimo/pybaseball | Holds, always | Subprocess assertion in `tests/test_compute.py`; CI `minimal` job | TBD | Every PR touching `pyproject.toml` or `python/` |
 | README addressable backlog items closed | 1 of 2 (season constants closed; PyPI release open) | 2 of 2 | Manual: re-read README, confirm matching capability shipped | TBD | Per milestone |
 | CI job pass/fail (`rust`, `python`, `minimal`, `wheels`, `sdist`) | All configured jobs green in GitHub Actions run 32591120952 on `main` | All configured jobs green on `main` | GitHub Actions status on the branch | TBD | Every push/PR |
 | Wheel platforms configured | 5 of 5 wheel targets passing in GitHub Actions run 32591120952 | 5 wheel targets passing in CI | Count of successful agreed OS/architecture matrix entries | TBD | Per RM-2/RM-2b |
@@ -238,6 +285,15 @@ and these exclusions are approved for RM-2b.
   CI jobs are green on the release commit; and the tag and configured package
   index artifact exist.
 
+### M7 — Marimo-focused repositioning (maps to the 2026-08 user decision)
+
+- Exit gate: **Done.** The interactive layer (`ingest`, `compute`, shipped
+  notebooks, `marimo` extra) is implemented with zero Rust changes; the
+  zero-dependency guarantee is re-verified (fresh-import test + local
+  minimal-install simulation); notebooks run headlessly offline in pytest;
+  README leads with the marimo experience while the batch API remains
+  documented.
+
 ## Dependency graph, critical path, and concurrency waves
 
 All repository-owned implementation prerequisites are complete:
@@ -274,6 +330,7 @@ approval of the release commit, and creation of the matching version tag.
 | RM-6 | Complete | complete | Rust agent | `arrow_bridge.rs` | **Done.** Guarded downcast invariants documented | Clippy plus native binding tests | No undocumented user-controlled panic path |
 | RM-7 | Complete | complete | Python agent | `tests/test_data.py`, pytest configuration | **Done.** Offline fallback test added and dead marker removed | `pytest -q tests/test_data.py` | Test passes without network access |
 | RM-8 | Complete | complete | Python agent | `tests/test_plus.py` | **Done.** Published-reference tolerances tightened to ±2.0 | `pytest -q tests/test_plus.py` | Tests and README claim remain aligned |
+| RM-9 | Complete | none (user-directed 2026-08) | Python agent, single lane (`python/saberkit`, `notebooks/`, tests, docs) | `pyproject.toml` extras; `python/saberkit/ingest.py`; `python/saberkit/compute.py`; `notebooks/*.py`; `tests/test_ingest.py`, `tests/test_compute.py`, `tests/test_notebooks.py`; CI python job | **Done.** Marimo-focused interactive layer: canonical-frame ingestion, one-call tables over Rust-backed functions, two shipped reactive notebooks, `saberkit[marimo]` extra, headless offline notebook tests | pytest 82 passed / 0 failed incl. notebook runs; fresh-import hygiene test green; local minimal-install simulation passed; zero Rust changes (core/binding suites unchanged) | Zero `[project].dependencies`; formulas only in `crates/saberkit-core`; notebooks never scrape in CI |
 
 ## Requirement-to-work traceability
 
