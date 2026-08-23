@@ -78,6 +78,9 @@ __all__ = [
     "wrc_plus",
     "xfip",
     "xfip_minus",
+    "compute",
+    "data",
+    "ingest",
     "__version__",
 ]
 
@@ -572,3 +575,11 @@ def xfip_minus(
 ) -> Any:
     """xFIP-: expected FIP against league average, lower is better."""
     return _core.xfip_minus(xfip, _constant(ctx, "lg_xfip", lg_xfip), park_factor)
+
+
+# ------------------------------------------------------- interactive layers
+# Imported last: `compute` reads module attributes defined above. Neither
+# submodule imports polars, pybaseball, or marimo at import time -- the
+# zero-required-dependency guarantee holds for plain `import saberkit`.
+
+from . import compute, data, ingest  # noqa: E402

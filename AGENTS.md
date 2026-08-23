@@ -7,15 +7,18 @@ Instructions for any agent (human or AI) working in this repository.
 `saberkit` is a Rust statistics engine for baseball sabermetrics ("plus"
 stats, "minus" stats, and Baseball-Savant-style percentile rankings) exposed
 to Python through PyO3 with zero-copy Arrow interchange (PyCapsule
-interface). The headline product guarantee is: **zero required runtime
-Python dependencies** — not pyarrow, not numpy. Anything that would make
-that guarantee false (a new required dependency on pyarrow/numpy/pandas, or
-a transitive one that leaks into the minimal install) is out of bounds
-without an explicit decision recorded in ROADMAP.md. Statistical scope is
-bounded to what's already listed in README.md's "What's implemented" table
-plus explicitly planned roadmap items — this is not a general-purpose
-baseball data or scraping library (pybaseball integration is an optional
-extra, `saberkit[data]`, not core).
+interface). Its primary face is a **marimo-focused toolkit for live,
+interactive data experiences**: `ingest.py` pulls a season into a canonical
+polars frame, `compute.py` builds whole annotated tables in one call, and
+`notebooks/` ships reactive marimo apps on top. The headline product
+guarantee is: **zero required runtime Python dependencies** — not pyarrow,
+not numpy, not marimo. Anything that would make that guarantee false (a new
+required dependency on pyarrow/numpy/pandas/marimo, or a transitive one that
+leaks into the minimal install) is out of bounds without an explicit decision
+recorded in ROADMAP.md. Statistical scope is bounded to what's already listed
+in README.md's "What's implemented" table plus explicitly planned roadmap
+items — this is not a general-purpose baseball data or scraping library
+(pybaseball integration is an optional extra, `saberkit[data]`, not core).
 
 ## Instruction precedence
 
@@ -38,7 +41,7 @@ Two crates, one hard boundary:
 | --- | --- | --- |
 | `crates/saberkit-core` | All statistics logic (rate stats, plus/minus families, percentiles, innings-pitched conversion, `LeagueContext`). Depends on nothing but `thiserror`. Pure, deterministic, no I/O. | Any `pyo3`, `arrow-*`, or Python-aware code. Verified: `cargo test -p saberkit-core` builds and runs with zero Python/Arrow in its dependency tree. |
 | `crates/saberkit-py` | PyO3 bindings, Arrow PyCapsule conversion (`arrow_bridge.rs`), Python-facing error mapping (`error.rs`), the `operand.rs` scalar-vs-array dispatch. | Any statistical formula, threshold, or business rule. If you find yourself computing a stat inside `saberkit-py`, it belongs in `saberkit-core` instead. |
-| `python/saberkit` | Thin Python package surface (`__init__.py`, `data.py` for the optional pybaseball helpers, `py.typed`). | Statistical logic. `data.py` fetches/reshapes data; it does not compute stats. |
+| `python/saberkit` | Thin Python package surface (`__init__.py`, `data.py` for optional pybaseball fetchers). Interactive layers: `ingest.py` fetches/reshapes into canonically-named polars frames; `compute.py` wires columns into the Rust-backed functions to build whole tables; `notebooks/` ships marimo apps on top. | Statistical logic. `data.py`/`ingest.py` fetch/reshape only; `compute.py` contains column wiring only — every number comes from a Rust-backed call (the sole sanctioned exceptions are the `pa` sum and `k_rate` ratio polars expressions, mirroring the original shipped example, both guarded against zero denominators by null rather than NaN). |
 
 This split is verified, not aspirational: `saberkit-core`'s own `Cargo.toml`
 pulls in only `thiserror`, and `cargo test -p saberkit-core` currently runs
@@ -71,14 +74,21 @@ before relying on a recorded result.
   binding-layer suite; keep
   `extension-module` disabled for this command so the test harness can link
   libpython.
-- **verified baseline** — `pytest -q` against a locally built wheel → 53
-  passed, 0 failed.
+- **verified baseline** — `pytest -q` against a locally built wheel → 82
+  passed, 0 failed (grew from 53 with the ingest/compute/notebook suites).
+- **verified baseline** — headless notebook runs: both shipped marimo apps
+  execute via `app.run()` under `SABERKIT_OFFLINE=1`; covered by
+  `tests/test_notebooks.py`.
+- **verified baseline** — fresh-import hygiene: `import saberkit` loads none
+  of polars/pyarrow/pandas/numpy/marimo/pybaseball (subprocess assertion in
+  `tests/test_compute.py`), and a wheel installed into a polars-only venv
+  computes through both the batch API and `compute.batting_table`.
 - **verified baseline** — `cargo fmt --all --check` → clean.
 - **verified baseline** — duplicate-arrow-crate guard:
   `cargo tree --workspace --duplicates | grep '^arrow-'` found nothing.
-- from CI, not executed as a full matrix here — `pip install -e '.[dev]'` then
-  `pytest -q` then `python examples/savant_bubbles.py` (CI job `python`,
-  matrix 3.11/3.12/3.13).
+- from CI, not executed as a full matrix here — `pip install -e '.[dev,marimo]'`
+  then `pytest -q` (CI job `python`, matrix 3.11/3.12/3.13; notebooks run
+  headlessly inside pytest).
 - from README, not executed here — `maturin develop -E dev` (build +
   install into active venv), then `pytest` from repo root.
 - from CI, not executed as a full lane here — the `minimal` job: `maturin
@@ -168,7 +178,8 @@ single-interpreter result from the full CI matrix.
   agent and let others build on top once it lands.
 - **Run the three CI lanes independently, then integrate.** The `rust` job
   (fmt, clippy, `cargo test -p saberkit-core`, duplicate-arrow guard), the
-  `python` job (pytest matrix + example script), and the `minimal` job
+  `python` job (pytest matrix, including headless notebook runs), and the
+  `minimal` job
   (wheel build + dependency-free import check) exercise different
   boundaries and can be validated in parallel by different agents. A change
   is not done until all three would pass, even if only one lane's files
