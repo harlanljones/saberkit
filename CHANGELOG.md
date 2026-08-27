@@ -8,6 +8,10 @@ Because the project is still pre-1.0, a minor release may contain breaking API
 changes. Patch releases remain backward-compatible bug fixes. Every breaking
 change must be called out explicitly in this file.
 
+## [0.1.0] — 2026-08-27
+
+### Initial release
+
 ## [Unreleased]
 
 ### Added
