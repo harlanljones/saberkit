@@ -22,11 +22,13 @@ change must be called out explicitly in this file.
   canonical ones), `saberkit.compute.batting_table` and
   `saberkit.compute.pitching_table` (one-call polars tables wiring rate
   stats, plus/minus ratings, and Savant percentile ranks from the existing
-  Rust-backed functions), and two shipped reactive notebooks under
-  `notebooks/`.
+  Rust-backed functions), and three shipped reactive notebooks under
+  `notebooks/` (the **percentile explorer**, the **pitcher scout**, and the
+  all-families **saberkit tour**).
 - A `marimo` optional extra (`marimo`, `altair`, `polars`) so the notebooks
   run out of the box; the CI `minimal` job continues to enforce that plain
   installs pull in nothing.
+- A rendered preview of the tour notebook in the README (`docs/saberkit_tour.png`).
 - Headless notebook smoke tests (offline via committed fixtures or
   `SABERKIT_OFFLINE=1`) plus ingestion/compute suites; a regression test pins
   that `import saberkit` never loads polars, pyarrow, pandas, numpy, marimo,

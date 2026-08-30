@@ -23,14 +23,21 @@ table = saberkit.compute.batting_table(
 ```
 
 Every rate stat, OPS+, wRC+, and the percentile ranks recompute reactively as
-the controls move. Two ready-to-run notebooks ship in
-[`notebooks/`](notebooks/) — a Savant-style **percentile explorer** and a
-**pitcher scout** for ERA-/FIP-:
+the controls move. Three ready-to-run notebooks ship in
+[`notebooks/`](notebooks/):
+
+- **percentile explorer** — Savant-style 1–100 percentile bubbles across wOBA,
+  OPS+, and wRC+.
+- **pitcher scout** — the ERA-/FIP- "minus" family against the strikeout bubble.
+- **saberkit tour** — the whole stat family (rate, plus, minus, percentiles) on
+  one screen, plus a tour of the scalar batch API underneath.
 
 ```bash
 pip install "saberkit[marimo,data]"   # data adds pybaseball for live fetching
-marimo edit notebooks/percentile_explorer.py   # runs offline without `data` too
+marimo edit notebooks/saberkit_tour.py   # runs offline without `data` too
 ```
+
+![The saberkit tour notebook, running offline against the sample fixtures](docs/saberkit_tour.png)
 
 ## Also a fast batch library
 

@@ -16,7 +16,7 @@ import pytest
 marimo = pytest.importorskip("marimo")
 pytest.importorskip("altair")
 
-NOTEBOOKS = ["percentile_explorer", "pitcher_explorer"]
+NOTEBOOKS = ["percentile_explorer", "pitcher_explorer", "saberkit_tour"]
 
 
 def _load(name: str) -> Any:
