@@ -49,6 +49,8 @@ include = [
     { path = "scripts/generate_season_constants.py", format = "sdist" },
     { path = "notebooks/percentile_explorer.py", format = "sdist" },
     { path = "notebooks/pitcher_explorer.py", format = "sdist" },
+    { path = "notebooks/biomech_explorer.py", format = "sdist" },
+    { path = "notebooks/saberkit_tour.py", format = "sdist" },
 ]
 
 [tool.pytest.ini_options]

@@ -23,7 +23,7 @@ table = saberkit.compute.batting_table(
 ```
 
 Every rate stat, OPS+, wRC+, and the percentile ranks recompute reactively as
-the controls move. Three ready-to-run notebooks ship in
+the controls move. Four ready-to-run notebooks ship in
 [`notebooks/`](notebooks/):
 
 - **percentile explorer** — Savant-style 1–100 percentile bubbles across wOBA,
@@ -31,6 +31,11 @@ the controls move. Three ready-to-run notebooks ship in
 - **pitcher scout** — the ERA-/FIP- "minus" family against the strikeout bubble.
 - **saberkit tour** — the whole stat family (rate, plus, minus, percentiles) on
   one screen, plus a tour of the scalar batch API underneath.
+- **biomech explorer** — Savant-style percentiles for OpenBiomechanics pitching
+  and hitting athletes. The data is *not* saberkit's and is *not* MIT: it is
+  downloaded at runtime under CC BY-NC-SA 4.0 with a professional-organization
+  exclusion. Read [`docs/openbiomechanics.md`](docs/openbiomechanics.md) before
+  running it; offline it shows synthetic demo data only.
 
 ```bash
 pip install "saberkit[marimo,data]"   # data adds pybaseball for live fetching
@@ -170,8 +175,11 @@ bundled; requesting an unsupported year raises `SaberError`.
 `data` extra; `saberkit.ingest` reshapes their output — and any polars/
 pandas/pyarrow frame you already have — into canonical lowercase columns.
 Scraped sites change without notice, so treat fetching as convenience, not
-contract, and pin snapshots for anything reproducible. The shipped notebooks
-fall back to committed fixtures when offline (`SABERKIT_OFFLINE=1` forces it).
+contract, and pin snapshots for anything reproducible. The season notebooks
+fall back to committed fixtures when a live fetch fails (`SABERKIT_OFFLINE=1`
+forces it). `biomech_explorer` does not: its fixtures are synthetic, so a
+failed OpenBiomechanics fetch reports the error instead of silently
+substituting fabricated numbers.
 
 ## Not yet included
 

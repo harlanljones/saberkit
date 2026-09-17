@@ -16,7 +16,12 @@ import pytest
 marimo = pytest.importorskip("marimo")
 pytest.importorskip("altair")
 
-NOTEBOOKS = ["percentile_explorer", "pitcher_explorer", "saberkit_tour"]
+NOTEBOOKS = [
+    "percentile_explorer",
+    "pitcher_explorer",
+    "saberkit_tour",
+    "biomech_explorer",
+]
 
 
 def _load(name: str) -> Any:
@@ -29,9 +34,7 @@ def _load(name: str) -> Any:
 
 
 @pytest.mark.parametrize("name", NOTEBOOKS)
-def test_notebook_runs_headless_and_produces_tables(
-    name: str, monkeypatch
-) -> None:
+def test_notebook_runs_headless_and_produces_tables(name: str, monkeypatch) -> None:
     monkeypatch.setenv("SABERKIT_OFFLINE", "1")
 
     module = _load(name)

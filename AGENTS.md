@@ -41,7 +41,7 @@ Two crates, one hard boundary:
 | --- | --- | --- |
 | `crates/saberkit-core` | All statistics logic (rate stats, plus/minus families, percentiles, innings-pitched conversion, `LeagueContext`). Depends on nothing but `thiserror`. Pure, deterministic, no I/O. | Any `pyo3`, `arrow-*`, or Python-aware code. Verified: `cargo test -p saberkit-core` builds and runs with zero Python/Arrow in its dependency tree. |
 | `crates/saberkit-py` | PyO3 bindings, Arrow PyCapsule conversion (`arrow_bridge.rs`), Python-facing error mapping (`error.rs`), the `operand.rs` scalar-vs-array dispatch. | Any statistical formula, threshold, or business rule. If you find yourself computing a stat inside `saberkit-py`, it belongs in `saberkit-core` instead. |
-| `python/saberkit` | Thin Python package surface (`__init__.py`, `data.py` for optional pybaseball fetchers). Interactive layers: `ingest.py` fetches/reshapes into canonically-named polars frames; `compute.py` wires columns into the Rust-backed functions to build whole tables; `notebooks/` ships marimo apps on top. | Statistical logic. `data.py`/`ingest.py` fetch/reshape only; `compute.py` contains column wiring only — every number comes from a Rust-backed call (the sole sanctioned exceptions are the `pa` sum and `k_rate` ratio polars expressions, mirroring the original shipped example, both guarded against zero denominators by null rather than NaN). |
+| `python/saberkit` | Thin Python package surface (`__init__.py`, `data.py` for optional pybaseball fetchers). Interactive layers: `ingest.py` fetches/reshapes into canonically-named polars frames; `compute.py` wires columns into the Rust-backed functions to build whole tables; `notebooks/` ships marimo apps on top. | Statistical logic. `data.py`/`ingest.py` fetch/reshape only; `compute.py` contains column wiring only — every number comes from a Rust-backed call (the sole sanctioned exceptions are the `pa` sum and `k_rate` ratio polars expressions, mirroring the original shipped example, both guarded against zero denominators by null rather than NaN). In `notebooks/`, one further exception is sanctioned: `biomech_explorer.py`'s per-athlete trial reduction (a `group_by("athlete")` max/mean over trial rows). It is a reducer over rows, not a statistic; every percentile it feeds still comes from `saberkit.percentile_ranks`. |
 
 This split is verified, not aspirational: `saberkit-core`'s own `Cargo.toml`
 pulls in only `thiserror`, and `cargo test -p saberkit-core` currently runs
@@ -74,9 +74,11 @@ before relying on a recorded result.
   binding-layer suite; keep
   `extension-module` disabled for this command so the test harness can link
   libpython.
-- **verified baseline** — `pytest -q` against a locally built wheel → 82
-  passed, 0 failed (grew from 53 with the ingest/compute/notebook suites).
-- **verified baseline** — headless notebook runs: both shipped marimo apps
+- **verified baseline** — `pytest -q` against a locally built wheel → 107
+  passed, 0 failed (grew from 53 with the ingest/compute/notebook suites and
+  the biomech explorer suite).
+- **verified baseline** — headless notebook runs: all four shipped marimo apps
+  (percentile explorer, pitcher scout, saberkit tour, biomech explorer)
   execute via `app.run()` under `SABERKIT_OFFLINE=1`; covered by
   `tests/test_notebooks.py`.
 - **verified baseline** — fresh-import hygiene: `import saberkit` loads none
@@ -160,6 +162,21 @@ single-interpreter result from the full CI matrix.
   source-integrity tests, and published-reference tolerance test. A new season
   is a reviewed regeneration from completed data, not a plausible row typed
   into `season_constants_generated.rs`.
+
+- **OpenBiomechanics values never enter the repository or artifacts.** The
+  `biomech_explorer` notebook fetches Driveline's OpenBiomechanics data at
+  runtime under CC BY-NC-SA 4.0; none of it may be committed. Allowed, as
+  provenance and schema facts: upstream file paths, upstream column names, the
+  commit SHA, file byte sizes, SHA-256 digests, the level vocabulary,
+  dataset-shape counts stated in prose, and the verbatim licence/exclusion/
+  citation text from upstream's `LICENSE-DATA.md` and `CITATION.cff`.
+  Forbidden: data rows or field values; athlete, session or trial identifiers
+  copied from the data or its dictionaries; any computed value (aggregate,
+  percentile, min/max, null count, distribution) committed as a literal,
+  fixture value or golden number; sentences from upstream's data dictionaries
+  or module READMEs; screenshots, HTML/WASM exports, marimo session snapshots
+  (`__marimo__/session/*.json`) or thumbnails (`__marimo__/assets/**`)
+  produced from real data. See `docs/openbiomechanics.md`.
 
 ## Coordination protocol for concurrent agent work
 

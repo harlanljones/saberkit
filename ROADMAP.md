@@ -99,7 +99,12 @@ now ships notebooks in the sdist.
   item for "implement park factor calculation."
 - **Becoming a data-fetching/scraping library.** `pybaseball` integration
   via the `saberkit[data]` extra is a convenience, not core scope. Do not
-  expand `data.py` into a general MLB data client.
+  expand `data.py` into a general MLB data client. Carve-out (2026-09-15):
+  the library package still performs no fetching beyond the optional
+  pybaseball extra. One shipped notebook, `notebooks/biomech_explorer.py`,
+  downloads four commit-pinned, digest-verified OpenBiomechanics CSVs at
+  runtime using only the standard library. No loader enters `python/saberkit`,
+  and this does not license a general fetching layer.
 - **Guessing league population definitions.** Custom contexts remain caller
   defined. Bundled contexts use the documented all-MLB-batters population;
   changing that population is a versioned data-methodology change.
@@ -188,8 +193,10 @@ live/interactive data experiences. The adopted shape:
 2. **Formulas stay in Rust.** `compute.batting_table` /
    `compute.pitching_table` are column-wiring layers over existing
    Rust-backed calls. The only sanctioned Python-side arithmetic mirrors the
-   original shipped example: the `pa` sum and the `k_rate` ratio as polars
-   expressions, both null-guarded against zero denominators.
+   original shipped example: the `pa` sum, the `k_rate` ratio, and — per the
+   2026-09-15 decision — `biomech_explorer.py`'s per-athlete max/mean trial
+   reduction, as polars expressions, null-guarded against zero denominators
+   where a denominator exists.
 3. **League populations stay explicit.** Tables take `league="season"`
    (bundled constants), `league="sample"` (derived from the shown totals), or
    an explicit `LeagueContext`. No guessing.
@@ -198,10 +205,47 @@ live/interactive data experiences. The adopted shape:
    not an exception; per-row undefined still means null, never NaN.
 5. **Offline determinism for tests.** Notebooks fall back to committed
    fixtures when pybaseball/network is unavailable (`SABERKIT_OFFLINE=1`
-   forces it); CI never scrapes.
+   forces it); CI never scrapes. Exception, per the 2026-09-15 decision:
+   `biomech_explorer.py` does not fall back — its committed fixtures are
+   synthetic, so a failed OpenBiomechanics fetch reports the error instead
+   of silently substituting fabricated numbers.
 
 Non-goals untouched: no park-factor computation, no expansion of fetching
-beyond the thin `data.py`/`ingest.py` convenience, no required notebook deps.
+beyond the thin `data.py`/`ingest.py` convenience and the pinned OBP fetch
+carved out by the 2026-09-15 decision, no required notebook deps.
+
+### Adopted OpenBiomechanics biomech explorer notebook (2026-09-15, user-directed)
+
+Per the instruction-precedence rule in `AGENTS.md` (user > AGENTS.md >
+ROADMAP.md), the user directed that saberkit ship one further marimo
+notebook, `notebooks/biomech_explorer.py`, ranking Driveline's
+OpenBiomechanics Project (OBP) athletes Savant-style. The adopted decisions
+(recorded in full in
+`docs/superpowers/specs/2026-09-15-openbiomechanics-notebook-design.md`):
+
+1. **Deliverable.** A self-contained notebook with percentile bubbles and a
+   leaderboard for OBP pitching and hitting athletes; helpers as
+   `@app.function`; no new public API, no Rust changes, no change to the
+   wheel's contents.
+2. **Trial reduction.** A visible dropdown reduces trials per athlete (best
+   trial / max by default, or mean). The per-athlete max/mean trial reduction
+   is a sanctioned Python-side reducer (see the amended 2026-08 decision,
+   item 2); every percentile still comes from `saberkit.percentile_ranks`.
+3. **Pin and digests.** The fetch is pinned to upstream commit
+   `44b98dae05cceb016f080ab39d105c85b8639084`; saberkit owns SHA-256
+   digests for the four CSVs it downloads, and errors name the pin.
+4. **License compliance by construction.** Data is fetched at runtime under
+   CC BY-NC-SA 4.0 with the professional-organization exclusion stated in
+   upstream's `LICENSE-DATA.md`; a license gate runs every session. OBP
+   data never enters the repository or any artifact — see the quality gate
+   in `AGENTS.md`.
+5. **Offline determinism — deliberate departure from the 2026-08 fallback
+   rule.** `biomech_explorer`'s committed fixtures are synthetic
+   (schema-shaped) rather than fixture mirrors of the live source, because
+   real rows would put CC BY-NC-SA data in an MIT/Apache repo; a failed
+   fetch reports the error instead of silently substituting fabricated
+   numbers. See `docs/openbiomechanics.md` for the license summary,
+   site-terms comparison, and pin-bump procedure.
 
 ## Metrics
 
@@ -211,8 +255,8 @@ beyond the thin `data.py`/`ingest.py` convenience, no required notebook deps.
 | `saberkit-core` doctest pass count | 1 passed | No regression | `cargo test -p saberkit-core` (doctest section) | TBD | Every PR touching doc comments with examples |
 | Clippy warnings (workspace) | 0 (recorded baseline) | 0, always | `cargo clippy --workspace --all-targets -- -D warnings` | TBD | Every PR |
 | `saberkit-py` native Rust test count | 13 passed (season-context translation added) | Grows with binding-layer changes | `cargo test -p saberkit-py --no-default-features` | TBD | Every PR touching `crates/saberkit-py` |
-| pytest pass count | 83 passed (53 prior baseline + ingest/compute/notebook suites) | No regressions; grows with new coverage | `pytest -q` from repo root | TBD | Every PR touching `python/`, `notebooks/`, or `crates/saberkit-py` |
-| Headless notebook execution | Three shipped notebooks run via `app.run()` under `SABERKIT_OFFLINE=1` | All three always executable offline | `pytest -q tests/test_notebooks.py` | TBD | Every PR touching `notebooks/` or the compute layer |
+| pytest pass count | 105 passed (53 prior baseline + ingest/compute/notebook suites + biomech explorer suite) | No regressions; grows with new coverage | `pytest -q` from repo root | TBD | Every PR touching `python/`, `notebooks/`, or `crates/saberkit-py` |
+| Headless notebook execution | Four shipped notebooks run via `app.run()` under `SABERKIT_OFFLINE=1` (`biomech_explorer` against synthetic fixtures) | All four always executable offline | `pytest -q tests/test_notebooks.py` | TBD | Every PR touching `notebooks/` or the compute layer |
 | Fresh-import hygiene | `import saberkit` loads none of polars/pyarrow/pandas/numpy/marimo/pybaseball | Holds, always | Subprocess assertion in `tests/test_compute.py`; CI `minimal` job | TBD | Every PR touching `pyproject.toml` or `python/` |
 | README addressable backlog items closed | 1 of 2 (season constants closed; PyPI release open) | 2 of 2 | Manual: re-read README, confirm matching capability shipped | TBD | Per milestone |
 | CI job pass/fail (`rust`, `python`, `minimal`, `wheels`, `sdist`) | All configured jobs green in GitHub Actions run 32591120952 on `main` | All configured jobs green on `main` | GitHub Actions status on the branch | TBD | Every push/PR |
@@ -294,6 +338,16 @@ and these exclusions are approved for RM-2b.
   README leads with the marimo experience while the batch API remains
   documented.
 
+### M8 — OpenBiomechanics biomech explorer (maps to the 2026-09-15 user decision)
+
+- Exit gate: **In progress.** `notebooks/biomech_explorer.py` ships in the
+  sdist with a commit-pinned, digest-verified runtime fetch, a license gate
+  on every session, Savant-style percentiles from
+  `saberkit.percentile_ranks`, and synthetic fixtures so tests and headless
+  runs never touch the network; `docs/openbiomechanics.md` and `NOTICE`
+  record the license terms, self-certification, and pin-bump procedure; the
+  OBP-data quality gate in `AGENTS.md` holds on the combined tree.
+
 ## Dependency graph, critical path, and concurrency waves
 
 All repository-owned implementation prerequisites are complete:
@@ -331,6 +385,7 @@ approval of the release commit, and creation of the matching version tag.
 | RM-7 | Complete | complete | Python agent | `tests/test_data.py`, pytest configuration | **Done.** Offline fallback test added and dead marker removed | `pytest -q tests/test_data.py` | Test passes without network access |
 | RM-8 | Complete | complete | Python agent | `tests/test_plus.py` | **Done.** Published-reference tolerances tightened to ±2.0 | `pytest -q tests/test_plus.py` | Tests and README claim remain aligned |
 | RM-9 | Complete | none (user-directed 2026-08) | Python agent, single lane (`python/saberkit`, `notebooks/`, tests, docs) | `pyproject.toml` extras; `python/saberkit/ingest.py`; `python/saberkit/compute.py`; `notebooks/*.py`; `tests/test_ingest.py`, `tests/test_compute.py`, `tests/test_notebooks.py`; CI python job | **Done.** Marimo-focused interactive layer: canonical-frame ingestion, one-call tables over Rust-backed functions, three shipped reactive notebooks (percentile explorer, pitcher scout, saberkit tour), `saberkit[marimo]` extra, headless offline notebook tests | pytest 83 passed / 0 failed incl. notebook runs; fresh-import hygiene test green; local minimal-install simulation passed; zero Rust changes (core/binding suites unchanged) | Zero `[project].dependencies`; formulas only in `crates/saberkit-core`; notebooks never scrape in CI |
+| RM-10 | In progress | none (user-directed 2026-09-15) | Python agent, single lane (`notebooks/`, tests, docs, packaging) | `notebooks/biomech_explorer.py`; `tests/test_biomech_explorer.py`, `tests/fixtures/openbiomechanics/`; `docs/openbiomechanics.md`, `NOTICE`, `README.md`, `CHANGELOG.md`; `pyproject.toml` sdist include | OpenBiomechanics biomech explorer notebook: commit-pinned, digest-verified runtime fetch, license gate, Savant-style percentiles via `saberkit.percentile_ranks`, synthetic offline fixtures; no Rust changes, no new public API, no wheel-content change | `pytest -q` incl. headless notebook run; OBP data never committed (see `AGENTS.md` quality gate); `docs/openbiomechanics.md` records license, site-terms comparison, self-certification, and pin-bump procedure | Notebook ships in sdist; pytest green incl. notebook suite; zero `[project].dependencies`; no OBP data rows or derived values in the repo or artifacts |
 
 ## Requirement-to-work traceability
 

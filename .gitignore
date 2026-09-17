@@ -14,3 +14,10 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+
+# Hermes repo-local dev environment (per-machine)
+.hermes/
+
+# marimo session snapshots, thumbnails and HTML exports embed cell outputs
+__marimo__/
+/notebooks/*.html

@@ -29,6 +29,13 @@ change must be called out explicitly in this file.
   run out of the box; the CI `minimal` job continues to enforce that plain
   installs pull in nothing.
 - A rendered preview of the tour notebook in the README (`docs/saberkit_tour.png`).
+- The **biomech explorer** notebook (`notebooks/biomech_explorer.py`) and
+  `docs/openbiomechanics.md`: Savant-style percentiles for OpenBiomechanics
+  pitching and hitting athletes, fetched at runtime from a pinned upstream
+  commit with saberkit-owned SHA-256 verification, gated behind a per-session
+  license acceptance, and run offline against synthetic fixtures
+  (`tests/fixtures/openbiomechanics/`). No OpenBiomechanics data is
+  distributed with saberkit; see `docs/openbiomechanics.md` before running it.
 - Headless notebook smoke tests (offline via committed fixtures or
   `SABERKIT_OFFLINE=1`) plus ingestion/compute suites; a regression test pins
   that `import saberkit` never loads polars, pyarrow, pandas, numpy, marimo,
@@ -44,6 +51,11 @@ change must be called out explicitly in this file.
   constants for completed seasons 2010–2025.
 - A standard-library-only constants generator, per-season source digests,
   Retrosheet attribution, and a trusted-publishing release workflow.
+
+### Fixed
+
+- The sdist now includes `notebooks/saberkit_tour.py`, which was omitted from
+  the packaging list.
 
 ### Changed
 
