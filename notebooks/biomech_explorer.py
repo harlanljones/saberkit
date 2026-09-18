@@ -405,7 +405,7 @@ def _(EXCLUSION_TEXT, FIXTURES, OFFLINE, SOURCE_LABEL):
                 ),
             ]
         )
-    notice
+    mo.vstack([notice, accepted])
     return (accepted, notice)
 
 

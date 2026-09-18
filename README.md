@@ -27,15 +27,18 @@ the controls move. Four ready-to-run notebooks ship in
 [`notebooks/`](notebooks/):
 
 - **percentile explorer** — Savant-style 1–100 percentile bubbles across wOBA,
-  OPS+, and wRC+.
+  OPS+, and wRC+. ([try it live](https://marimo.app/github.com/harlanljones/saberkit/blob/main/notebooks/percentile_explorer.py))
 - **pitcher scout** — the ERA-/FIP- "minus" family against the strikeout bubble.
+  ([try it live](https://marimo.app/github.com/harlanljones/saberkit/blob/main/notebooks/pitcher_explorer.py))
 - **saberkit tour** — the whole stat family (rate, plus, minus, percentiles) on
   one screen, plus a tour of the scalar batch API underneath.
+  ([try it live](https://marimo.app/github.com/harlanljones/saberkit/blob/main/notebooks/saberkit_tour.py))
 - **biomech explorer** — Savant-style percentiles for OpenBiomechanics pitching
   and hitting athletes. The data is *not* saberkit's and is *not* MIT: it is
   downloaded at runtime under CC BY-NC-SA 4.0 with a professional-organization
   exclusion. Read [`docs/openbiomechanics.md`](docs/openbiomechanics.md) before
   running it; offline it shows synthetic demo data only.
+  ([try it live](https://marimo.app/github.com/harlanljones/saberkit/blob/main/notebooks/biomech_explorer.py))
 
 ```bash
 pip install "saberkit[marimo,data]"   # data adds pybaseball for live fetching
