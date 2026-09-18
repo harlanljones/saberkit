@@ -45,8 +45,6 @@ pip install "saberkit[marimo,data]"   # data adds pybaseball for live fetching
 marimo edit notebooks/saberkit_tour.py   # runs offline without `data` too
 ```
 
-![The saberkit tour notebook, running offline against the sample fixtures](docs/saberkit_tour.png)
-
 ## Also a fast batch library
 
 Pass Arrow arrays and you get Arrow back through the
